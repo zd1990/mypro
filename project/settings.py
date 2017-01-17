@@ -14,6 +14,10 @@ import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LOGPATH_ZDPRO = os.path.join(BASE_DIR,'log/zdpro.log')
+if not os.path.exists(os.path.dirname(LOGPATH_ZDPRO)):
+    os.mkdir(os.path.dirname(LOGPATH_ZDPRO))
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -124,3 +128,31 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.10/howto/static-files/
 
 STATIC_URL = '/static/'
+
+LOGGING = {
+    'version':1,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+        'complete': {
+            'format': '[%(levelname)s %(asctime)s @ %(process)d] (%(pathname)s/%(funcName)s:%(lineno)d) - %(message)s'
+        },
+        'online': {
+            'format': '[%(levelname)s %(asctime)s @ %(process)d] - %(message)s'
+        }
+    },
+    'filters':{},
+    'handlers':{
+        'zdpro':{
+            'level':'DEBUG',
+            'class':'logging.handlers.RotatingFileHandler',
+            'format':'online',
+            'filename':LOGPATH_ZDPRO
+        }
+    }
+}
