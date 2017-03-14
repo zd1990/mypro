@@ -4,59 +4,58 @@ from django.db import models
 
 # Create your models here.
 
-class Host(models.Model):
+class HostDB(models.Model):
     ip = models.CharField(default='',max_length=20)
     hostname = models.CharField(default='',max_length=100)
 
-class DiskName(models.Model):
+class DiskNameDB(models.Model):
     name = models.CharField(default='',max_length=20)
 
-class NicName(models.Model):
+class NicNameDB(models.Model):
     name = models.CharField(default='',max_length=100)
 
-class Cpu(models.Model):
-    host_id = models.ForeignKey(Host)
-    cpu_num = models.IntegerField()
+class CpuDB(models.Model):
+    host = models.ForeignKey(HostDB)
+    name = models.IntegerField()
     usr = models.FloatField()
     nice = models.FloatField()
-    sys = models.FloatField()
+    system = models.FloatField()
     iowait = models.FloatField()
     irq = models.FloatField()
     soft = models.FloatField()
-    steal = models.FloatField()
-    quest = models.FloatField()
-    gnice = models.FloatField()
     idle = models.FloatField()
-    times = models.TimeField()
+    times = models.TimeField(auto_now_add=True)
 
-class Disk(models.Model):
-    disk_id = models.ForeignKey(DiskName)
-    host_id = models.ForeignKey(Host)
+class DiskDB(models.Model):
+    disk = models.ForeignKey(DiskNameDB)
+    host = models.ForeignKey(HostDB)
     r_ops = models.FloatField()
     w_ops = models.FloatField()
     r_bps = models.FloatField()
     w_bps = models.FloatField()
-    times = models.TimeField()
+    times = models.TimeField(auto_now_add=True)
 
-class Mem(models.Model):
-    host_id = models.ForeignKey(Host)
+class MemDB(models.Model):
+    host = models.ForeignKey(HostDB)
     total = models.IntegerField()
-    used = models.IntegerField()
+    available = models.IntegerField()
     free = models.IntegerField()
-    times = models.TimeField()
+    buffers = models.IntegerField()
+    cached = models.IntegerField()
+    times = models.TimeField(auto_now_add=True)
 
-class Nic(models.Model):
-    host_id = models.ForeignKey(Host)
-    nic_id = models.ForeignKey(NicName)
+class NicDB(models.Model):
+    host = models.ForeignKey(HostDB)
+    nic = models.ForeignKey(NicNameDB)
     r_byte = models.IntegerField()
     w_byte = models.IntegerField()
     r_pack = models.IntegerField()
     w_pack = models.IntegerField()
-    times = models.TimeField()
+    times = models.TimeField(auto_now_add=True)
 
-class Sysload(models.Model):
-    host_id = models.ForeignKey(Host)
+class SysloadDB(models.Model):
+    host = models.ForeignKey(HostDB)
     m1 = models.FloatField()
     m5 = models.FloatField()
     m15 = models.FloatField()
-    times = models.TimeField()
+    times = models.TimeField(auto_now_add=True)

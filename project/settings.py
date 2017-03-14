@@ -16,6 +16,7 @@ import djcelery
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOGPATH_ZDPRO = os.path.join(BASE_DIR,'log/zdpro.log')
+PATH_CONF = os.path.join(BASE_DIR,'conf/pro.conf')
 if not os.path.exists(os.path.dirname(LOGPATH_ZDPRO)):
     os.mkdir(os.path.dirname(LOGPATH_ZDPRO))
 
