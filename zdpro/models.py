@@ -16,7 +16,7 @@ class NicNameDB(models.Model):
 
 class CpuDB(models.Model):
     host = models.ForeignKey(HostDB)
-    name = models.IntegerField()
+    name = models.FloatField()
     usr = models.FloatField()
     nice = models.FloatField()
     system = models.FloatField()

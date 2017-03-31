@@ -7,7 +7,7 @@ import threading
 import logging
 import time
 import errno
-zdpro_log = logging.getLogger('zdpro')
+zdpro_log = logging.getLogger('zdpro_log')
 POLL_TIME_INCR = 0.5
 
 def exec_shell(cmd):

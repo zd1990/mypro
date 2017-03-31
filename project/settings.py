@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'zdpro',
-    'djcelery'
+    'djcelery',
+    'django_extensions'
 ]
 
 MIDDLEWARE = [
@@ -157,9 +158,19 @@ LOGGING = {
             'formatter':'online',
             'filename':LOGPATH_ZDPRO
         }
+    },
+    'loggers':{
+        'zdpro_log':{
+            'handlers':['zdpro'],
+            'propagate':False,
+            'level':'DEBUG'
+        }
     }
 }
 
 djcelery.setup_loader()
 BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+
+

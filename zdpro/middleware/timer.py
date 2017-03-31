@@ -69,7 +69,8 @@ class Timer(threading.Thread):
         '''
         def work_put(*args,**kwargs):
             interval = kwargs.pop('interval')
-            self.__put(func,args,kwargs,interval)
+            if interval:
+                self.__put(func,args,kwargs,interval)
         return work_put
 
     def run(self):

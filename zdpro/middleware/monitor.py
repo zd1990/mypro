@@ -1,9 +1,12 @@
 #coding:utf-8
+__author__ = 'DingZhang(dingzhang1990@gmail.com)'
+
 import ConfigParser
 
-from zdpro.middleware.common import plog
+from zdpro.middleware.common import plog, dlog
+from zdpro.middleware.timer import Timer
+from zdpro.tasks import getinfo_hard
 
-__author__ = 'DingZhang(dingzhang1990@gmail.com)'
 from project.settings import PATH_CONF
 from zdpro.middleware.hdware.common import Common
 from zdpro.models import HostDB
@@ -31,6 +34,7 @@ class Config():
         解析配置文件
         :return:
         '''
+        dlog('start init config')
         self._config_read()
         list_section_now = self.cf.sections()
         if 'global' in list_section_now:
@@ -38,9 +42,9 @@ class Config():
             self.list_item_default.update(dict_global)
         list_stand_section = [i for i in list_section_now if i.startswith('host:')]
         list_stand_host = [i.replace('host:','') for i in list_stand_section]
-        if 'host' in list_section_now:
+        if 'hosts' in list_section_now:
             info_interval_tmp = self.list_item_default.copy()
-            dict_host = dict(self.cf.items('host'))
+            dict_host = dict(self.cf.items('hosts'))
             for hostname,ip in dict_host.items():
                 if ip.find(":") != -1:
                     ip,port = ip.split(':')
@@ -51,7 +55,7 @@ class Config():
                     info_interval_tmp.update(tmp_info)
                 else:
                     info_interval_tmp = self.list_item_default
-                host_obj = Hosts(hostname,ip,port,info_interval_tmp)
+                host_obj = Hosts(hostname,ip,int(port),info_interval_tmp)
                 self.list_hostobj.append(host_obj)
         return 0
 
@@ -59,32 +63,58 @@ class Config():
         return self.list_hostobj
 
 
-
+timer = Timer()
+timer.start()
 class Hosts():
     def __init__(self,hostname,ip,ssh_port,info_interval):
         self.hostname = hostname
         self.ip = ip
         self.ssh_port = ssh_port
-        self.interval_cpu = info_interval.get('interval_cpu',0)
-        self.interval_mem = info_interval.get('interval_mem',0)
-        self.interval_disk_use = info_interval.get('interval_disk_use',0)
-        self.interval_disk_iops = info_interval.get('interval_disk_iops',0)
-        self.interval_netcard = info_interval.get('interval_netcard',0)
-        self.interval_system = info_interval.get('interval_system',0)
+        self.interval_cpu = int(info_interval.get('interval_cpu',0))
+        self.interval_mem = int(info_interval.get('interval_mem',0))
+        self.interval_disk_use = int(info_interval.get('interval_disk_use',0))
+        self.interval_disk_iops = int(info_interval.get('interval_disk_iops',0))
+        self.interval_netcard = int(info_interval.get('interval_netcard',0))
+        self.interval_system = int(info_interval.get('interval_system',0))
+        self.alive = True
 
+    @timer.add
     def is_alive(self):
         ret = Common.is_alive(self.hostname)
-        return ret
+        self.alive = True if ret else False
 
-    def loop(self,interval):
-        def _loop(func):
-            def run(*args,**kwargs):
-                ret = func(*args,**kwargs)
-            return run
-        return _loop
+    @timer.add
+    def _get_cpu_load(self,interval=0):
+        if self.alive:
+            getinfo_hard.delay('cpu_load',self.hostname,self.ssh_port)
+
+    @timer.add
+    def _get_mem_info(self,interval=0):
+        if self.alive:
+            getinfo_hard.delay('mem',self.hostname,self.ssh_port)
+
+    @timer.add
+    def _get_sys_load(self,interval=0):
+        if self.alive:
+            getinfo_hard.delay('sysload',self.hostname,self.ssh_port)
+
+    @timer.add
+    def _get_disk_info(self,interval=0):
+        if self.alive:
+            getinfo_hard.delay('disk_ops',self.hostname,self.ssh_port)
+
+    @timer.add
+    def _get_nic_info(self,interval=0):
+        if self.alive:
+            getinfo_hard.delay('nic',self.hostname,self.ssh_port)
 
     def monitor(self):
-        pass
+        self.is_alive(interval=10)
+        self._get_cpu_load(interval=self.interval_cpu)
+        self._get_mem_info(interval=self.interval_mem)
+        self._get_sys_load(interval=self.interval_system)
+        self._get_disk_info(interval=self.interval_disk_iops)
+        self._get_nic_info(interval=self.interval_netcard)
 
 
 class Monitor():
@@ -100,15 +130,16 @@ class Monitor():
 
     def _monitor(self):
         for host in self.list_hostobj:
-            if host.is_alive():
-                pass
+            host.monitor()
 
     def start(self):
+        dlog("start monitor")
         cf = Config()
         tmp_ret = cf.init_config()
         assert tmp_ret == 0,'config init faild'
         self.list_hostobj = cf.list_hostobj
         self._initdb()
+        self._monitor()
 
 
 
