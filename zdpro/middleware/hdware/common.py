@@ -25,7 +25,7 @@ class Cpu(object):
         ret = {}
         cmd = "timeout 30 cat /proc/cpuinfo|grep 'model name'|cut -d: -f 2"
         out = Common.command(cmd,hostname,port)
-        tmp_type_list = out.readlines()
+        tmp_type_list = out.read().strip().split('\n')
         type_list = [i.strip() for i in tmp_type_list]
         n = 0
         for types in type_list:
@@ -42,7 +42,7 @@ class Cpu(object):
         ret = {}
         cmd = "timeout 30 cat /proc/stat|awk '/^cpu/ {print}'"
         out = Common.command(cmd,hostname,port)
-        tmp_list = [i.strip() for i in out.readlines()]
+        tmp_list = [i.strip() for i in out.read().strip().split('\n')]
         for line in tmp_list:
             tmp_list_1 = line.split()
             cpu_id = tmp_list_1[0]
@@ -61,7 +61,7 @@ class Cpu(object):
             iowait_s = "%.2f" % (iowait * 100 / cputime)
             irq_s = "%.2f" % (irq * 100 / cputime)
             softirq_s = "%.2f" % (softirq * 100 / cputime)
-            ret = {"name":cpu_id,"user": user_s, "nice": nice_s, "system": system_s, "idle": idle_s,
+            ret = {"name":cpu_id,"usr": user_s, "nice": nice_s, "system": system_s, "idle": idle_s,
                                    "iowait": iowait_s, "irq": irq_s, "softirq": softirq_s}
             yield ret
 
@@ -80,7 +80,7 @@ class Mem(object):
         ret = 0
         cmd = "timeout 30 cat /proc/meminfo|awk 'NR<7 {print $2}'"
         out = Common.command(cmd,hostname,port)
-        tmp_list = [i.strip() for i in out.readlines()]
+        tmp_list = [i.strip() for i in out.read().strip().split('\n')]
         memTotal = tmp_list[0]
         memFree = tmp_list[1]
         memAvailable = tmp_list[2]
@@ -118,7 +118,7 @@ class NetCard(object):
         ret = {}
         def _dataframe(tmp_list):
             pandas_list = [i.split() for i in tmp_list]
-            unames = ['nic_name','nic_in_byte','nic_in_packets','nic_out','nic_out_packets']
+            unames = ['nic_name','nic_in_byte','nic_in_packets','nic_out_byte','nic_out_packets']
             dataframe = pd.DataFrame(pandas_list,columns=unames)
             return dataframe
 
@@ -131,15 +131,15 @@ class NetCard(object):
             assert stat == 0,"exec %s faild err:%s" % (cmd, err.read())
         else:
             with RemoteSSH(hostname,port) as rs:
-                ins,out_old,err = rs.exec_cmd(cmd)
+                out_old = rs.exec_cmd(cmd)
                 time.sleep(1)
-                ins,out_now,err = rs.exec_cmd(cmd)
+                out_now = rs.exec_cmd(cmd)
         tmp_list_old = out_old.read().strip().split('\n')
         dataframe_old = _dataframe(tmp_list_old)
-        dataframe_old[['nic_in','nic_in_packets','nic_out','nic_out_packets']] = dataframe_old[['nic_in','nic_packets','nic_out','nic_out_packets']].astype(int)
+        dataframe_old[['nic_in_byte','nic_in_packets','nic_out_byte','nic_out_packets']] = dataframe_old[['nic_in_byte','nic_in_packets','nic_out_byte','nic_out_packets']].astype(int)
         tmp_list_now = out_now.read().strip().split('\n')
         dataframe_now = _dataframe(tmp_list_now)
-        dataframe_now[['nic_in','nic_in_packets','nic_out','nic_out_packets']] = dataframe_now[['nic_in','nic_in_packets','nic_out','nic_out_packets']].astype(int)
+        dataframe_now[['nic_in_byte','nic_in_packets','nic_out_byte','nic_out_packets']] = dataframe_now[['nic_in_byte','nic_in_packets','nic_out_byte','nic_out_packets']].astype(int)
         ret_data = (dataframe_now.iloc[:,1:] - dataframe_old.iloc[:,1:]).join(dataframe_now['nic_name'])
         ret_json = ret_data.to_json(orient='values')
         return ret_json
@@ -156,11 +156,12 @@ class Disk(object):
         获取所有磁盘
         :return:
         '''
-        cmd = "timeout 30 fdisk -l|awk -F: '/^Disk \/dev/{print $1}'|cut -d ' ' -f 2"
+        # cmd = "timeout 30 fdisk -l|awk -F: '/^Disk \/dev/{print $1}'|cut -d ' ' -f 2 >/dev/null 2>&1"
+        cmd = "lsblk|grep disk|awk '{print $1}'"
         # out, err, stat = exec_shell(cmd)
         # assert stat == 0, "cmd:%s execl faild %s" % (cmd, err.read())
         out = Common.command(cmd,hostname,port)
-        dev_list_tmp = out.readlines()
+        dev_list_tmp = out.read().strip().split('\n')
         dev_list = [i.strip() for i in dev_list_tmp]
         ret = dev_list
         return ret
@@ -183,7 +184,7 @@ class Disk(object):
 
     @classmethod
     @plog('Disk.info_disk_iops')
-    def info_disk_iops(cls, dev,hostname,port):
+    def info_disk_iops(cls,hostname,port,dev="*"):
         '''
         获取磁盘iops和读写MBPS
         :param dev:
@@ -199,7 +200,7 @@ class Disk(object):
         cmd = "cat /proc/diskstats |awk '{print $3}'"
         # out, err, stat = exec_shell(cmd)
         out = Common.command(cmd,hostname,port)
-        tmp_list = out.readlines()
+        tmp_list = out.read().strip().split('\n')
         tmp_list = [i.strip() for i in tmp_list]
         if dev == "*":
             devlist = Disk.info_disk_overview(hostname,port)
@@ -225,7 +226,7 @@ class Disk(object):
         ret_data = (dataframe_now.iloc[:,1:].astype(int) - dataframe_old.iloc[:,1:].astype(int)).join(dataframe_now['disk_name'])
         ret_data['r_bps'] = ret_data['r_bps']*block_size
         ret_data['w_bps'] = ret_data['w_bps']*block_size
-        ret_json = ret_data.to_josn(orient='values')
+        ret_json = ret_data.to_json(orient='values')
         return ret_json
 
 
@@ -234,7 +235,7 @@ class System(object):
         pass
 
     @classmethod
-    @plog('Ssytem.info_sys_load')
+    @plog('System.info_sys_load')
     def info_sys_load(cls,hostname,port):
         '''
         获取系统负载
@@ -272,7 +273,7 @@ class Common(object):
             assert stat == 0,"exec %s faild err:%s"%(cmd,err.read())
         else:
             with RemoteSSH(hostname,port) as rs:
-                ins,out,err = rs.exec_cmd(cmd)
+                out = rs.exec_cmd(cmd)
         return out
 
     @classmethod
@@ -311,6 +312,6 @@ class RemoteSSH():
 
     def exec_cmd(self,cmd):
         stdin,stdout,stderr = self.ssh_fd.exec_command(cmd)
-        assert not stderr.read(),'cmd:%s exec faild'%cmd
-        return stdout.read()
+        assert not stderr.read(),'cmd:%s exec faild,err:%s'%(cmd,stderr.read())
+        return stdout
 
